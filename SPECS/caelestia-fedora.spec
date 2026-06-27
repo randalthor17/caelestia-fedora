@@ -1,50 +1,3 @@
-## caelestia-fedora.spec
-##
-## Packaging of https://github.com/EnceladusII/caelestia-fedora (branch: fedora)
-## for COPR. Built from the upstream install.fish, with the following design
-## change: anything install.fish did with raw `sudo dnf install <random pkgs>`,
-## `cargo install`, `go install`, `pip install`, ad hoc `git clone && make`, or
-## `wget`+`unzip` is replaced here with declarative RPM dependencies and proper
-## %build/%install steps, so `dnf install caelestia-fedora` does the whole job.
-##
-## Produces 3 binary RPMs from one source:
-##   caelestia-fedora        - meta-package + dotfiles (hypr, foot, fish, fastfetch,
-##                              uwsm, btop, qt5ct, qt6ct, starship.toml) + installer
-##   caelestia-cli            - the `caelestia` control script (Python, built from
-##                              caelestia-fedora-cli)
-##   caelestia-shell           - the Quickshell-based desktop shell + beat_detector
-##                              (built from caelestia-fedora-shell)
-##
-## NOTE on COPR repos: every package below was checked against
-## packages.fedoraproject.org and the Fedora Copr search before being put in
-## Requires/BuildRequires. Plain Fedora repos do NOT carry all of these —
-## several only exist in third-party COPRs, and a couple don't exist as RPMs
-## anywhere, which is noted package-by-package below. COPRs that must be
-## enabled on the chroot/build host *before* this package builds or installs:
-##   atim/starship              -> starship (verified: starship.rs's own
-##                                  recommended install method)
-##   solopasha/hyprland          -> hyprpicker, hypridle (verified: Fedora's
-##                                  own hyprpicker/hypridle packages are
-##                                  orphaned and only ever existed for
-##                                  Fedora 40/41 -- do NOT rely on them.
-##                                  install.fish's original `aneagle/ags-3`
-##                                  COPR does NOT carry these two packages at
-##                                  all -- that line in upstream install.fish
-##                                  looks like a bug, not intentional)
-##   errornointernet/quickshell  -> quickshell (the stable package; upstream
-##                                  caelestia-shell docs prefer this over
-##                                  quickshell-git unless you need master)
-##   celestelove/app2unit        -> app2unit (verified: no plain-Fedora or
-##                                  RPMFusion package exists)
-## Two more packages install.fish pulled in (wl-screenrec, cliphist) have NO
-## single canonical/maintained COPR -- they're scattered across several
-## small personal repos of varying quality. Rather than depend on one of
-## those, this project also builds them itself, from the same upstream
-## sources install.fish used (russelltg/wl-screenrec, sentriz/cliphist) --
-## see SPECS/wl-screenrec.spec and SPECS/cliphist.spec alongside this file.
-## See the .copr/ section at the bottom of this file / README for `copr-cli`
-## invocations that enable these automatically for COPR builds.
-
 %global dotsrepo    caelestia-fedora
 %global dotscommit  fedora
 %global clirepo     caelestia-fedora-cli
@@ -67,23 +20,14 @@ URL:            %{forgeurl0}
 Source0:        %{forgeurl0}/archive/refs/heads/%{dotscommit}/%{dotsrepo}-%{dotscommit}.tar.gz
 Source1:        %{forgeurl1}/archive/refs/heads/%{clicommit}/%{clirepo}-%{clicommit}.tar.gz
 Source2:        %{forgeurl2}/archive/refs/heads/%{shellcommit}/%{shellrepo}-%{shellcommit}.tar.gz
-# PyPI sdist for materialyoucolor: no Fedora/RPMFusion package exists for
-# this at all (confirmed against packages.fedoraproject.org and Fedora's own
-# end-4/dots-hyprland community, who hit the same gap and fell back to pip
-# into a venv on Fedora). It ships a pybind11 C++ extension, so it's built
-# from source here rather than just `pip install`'d.
 Source3:        https://files.pythonhosted.org/packages/source/m/materialyoucolor/materialyoucolor-%{mycver}.tar.gz
 
-BuildArch:      noarch
-
-# --- COPR repos that MUST be enabled for this spec to build/install ---
-# (documented here, enforced by .copr/Makefile, see bottom of file)
+# BuildArch:      noarch
 
 Requires:       caelestia-cli = %{version}-%{release}
 Requires:       caelestia-shell = %{version}-%{release}
 
-# --- Core runtime deps (formerly the giant `dnf install ...` in ensure_tools) ---
-# Plain Fedora repos (verified on packages.fedoraproject.org):
+# Core runtime deps
 Requires:       hyprland
 Requires:       xdg-desktop-portal-hyprland
 Requires:       xdg-desktop-portal-gtk
@@ -111,239 +55,212 @@ Requires:       lm_sensors
 Requires:       ddcutil
 Requires:       brightnessctl
 Requires:       cava
-
-# COPR atim/starship (verified: this is starship.rs's own documented Fedora
-# install method, not just an install.fish guess)
 Requires:       starship
-
-# COPR solopasha/hyprland (verified: Fedora's own hyprpicker/hypridle exist
-# ONLY for Fedora 40/41 and are orphaned -- do not rely on them past that.
-# install.fish points at `aneagle/ags-3` for these, which is wrong: that COPR
-# only ships aylurs-gtk-shell/hyprpanel, not hyprpicker or hypridle, so this
-# spec uses the correct COPR instead of reproducing the upstream bug)
 Requires:       hyprpicker
 Requires:       hypridle
-
-# app2unit: confirmed there is NO plain Fedora or RPMFusion package; only
-# available via COPR celestelove/app2unit. (See .copr/Makefile / README for
-# the enable command. install.fish built this from source via git+make on
-# every install instead -- one COPR enable replaces that.)
 Requires:       app2unit
-
-# wl-screenrec : confirmed there is NO single canonical/official
-# Fedora or COPR package for either of these -- they're scattered across
-# several small personal COPRs of varying quality/maintenance (e.g.
-# endegraaf/wl-screenrec is explicitly marked "not yet working" by its own
-# author; cliphist has at least 3 competing unofficial COPRs: alternateved,
-# wef, purian23). Rather than depend on one of those, this spec's COPR
-# project should also build SPECS/wl-screenrec.spec and SPECS/cliphist.spec
-# (included alongside this file) from the same upstream sources install.fish
-# used (russelltg/wl-screenrec, sentriz/cliphist), so both Requires below
-# resolve from this project's own COPR output rather than a third party's.
 Requires:       wl-screenrec
 Requires:       cliphist
-
-# Fonts: replaces the wget-from-GitHub-releases nerd-font + Material Symbols
-# dance in install.fish with a real font subpackage built in this same spec.
 Requires:       %{name}-fonts = %{version}-%{release}
 
 %description
-Meta-package and dotfiles for the Caelestia Hyprland desktop, Fedora edition
-(EnceladusII/caelestia-fedora). Installing this package pulls in caelestia-cli,
-caelestia-shell, and every runtime dependency the upstream install.fish script
-used to install ad hoc with dnf/cargo/go/pip/git+make, and symlinks the bundled
-configs (hypr, foot, fish, fastfetch, uwsm, btop, qt5ct, qt6ct, starship.toml)
-into $XDG_CONFIG_HOME for you on first login via a %post scriptlet, exactly as
-install.fish did, minus the network calls.
-
-Before building or installing from COPR, make sure the following COPR repos
-are enabled on the chroot:
-  atim/starship, solopasha/hyprland, errornointernet/quickshell,
-  celestelove/app2unit
-wl-screenrec and cliphist are built by this same COPR project (see
-SPECS/wl-screenrec.spec, SPECS/cliphist.spec) rather than depending on a
-third-party COPR, since no single canonical one exists for either.
+Meta-package and dotfiles for the Caelestia Hyprland desktop, Fedora edition.
+Run `caelestia-fedora-setup` after installation to safely deploy configurations
+directly to your home configuration profile paths.
 
 %package fonts
 Summary:        Nerd Fonts + Material Symbols used by the Caelestia shell
 BuildArch:      noarch
-# CascadiaCode / JetBrainsMono Nerd Font + Google Material Symbols, formerly
-# fetched at install-time via `wget` from GitHub releases in install.fish's
-# fonts_install / material_symbols_install functions.
-# This subpackage is named caelestia-fedora-fonts (Name-fonts); referenced
-# above as Requires: %{name}-fonts.
 
 %description fonts
 Cascadia Code Nerd Font, JetBrains Mono Nerd Font, and Google Material Symbols
-(Rounded/Outlined/Sharp), packaged as real RPM-managed fonts instead of being
-downloaded with wget into ~/.local/share/fonts at install time.
+packaged natively as system RPM fonts.
 
 %package -n caelestia-cli
 Summary:        Control script for the Caelestia dotfiles (Fedora build)
 License:        GPL-3.0-only
 URL:            %{forgeurl1}
-BuildRequires:  python3-devel
-BuildRequires:  python3-build
-BuildRequires:  python3-installer
-BuildRequires:  hatch
-BuildRequires:  python3-hatch-vcs
+BuildRequires:  python3-devel python3-build python3-installer hatch python3-hatch-vcs pyproject-rpm-macros
 Requires:       python3-materialyoucolor = %{version}-%{release}
-Requires:       fish
-Requires:       libnotify
-Requires:       swappy
-Requires:       grim
-Requires:       slurp
-Requires:       wl-clipboard
-Requires:       glib2
-Requires:       fuzzel
+Requires:       fish libnotify swappy grim slurp wl-clipboard glib2 fuzzel
+
+BuildArch:      noarch
 
 %description -n caelestia-cli
-The `caelestia` command-line control script: scheme/wallpaper management,
-screenshot/recording helpers, IPC into the shell, and the `caelestia install`
-subcommand. Built from a wheel via python3 -m build, replacing install.fish's
-ad hoc `git clone && python3 -m build --wheel && pip install --break-system-packages`
-sequence with a normal RPM %%build/%%install.
+The `caelestia` command-line control tool wrapper.
 
 %package -n python3-materialyoucolor
 Summary:        Material You color generation algorithms (pybind11/C++ backend)
 License:        Apache-2.0
-URL:            https://github.com/T-Dynamos/materialyoucolor-python
-BuildRequires:  python3-devel
-BuildRequires:  python3-pip
-BuildRequires:  python3-setuptools
-BuildRequires:  python3-wheel
-# materialyoucolor's setup.py imports pybind11 directly at build time (not
-# just headers via pybind11-devel) -- confirmed by AUR's
-# python-materialyoucolor-git PKGBUILD comment trail, where omitting either
-# one breaks the build with "Missing setuptools dependency" /
-# "Misses pybind11 as dependency, fails to build without".
-BuildRequires:  python3-pybind11
-BuildRequires:  pybind11-devel
-BuildRequires:  gcc-c++
+BuildRequires:  python3-devel python3-pip python3-setuptools python3-wheel pyproject-rpm-macros
+BuildRequires:  python3-pybind11 pybind11-devel gcc-c++
+
 %description -n python3-materialyoucolor
-Pure-Python Material You color algorithms with a pybind11 C++ quantization
-backend, used by caelestia-cli for wallpaper-derived theming. No Fedora or
-RPM Fusion package exists for this upstream project (confirmed against
-packages.fedoraproject.org), so it's built here from the PyPI sdist instead
-of caelestia-cli falling back to `pip install --break-system-packages` the
-way install.fish's cli_install function did.
+Pure-Python Material You color matching engine optimized via C++ extensions.
 
 %package -n caelestia-shell
 Summary:        Quickshell-based desktop shell for Caelestia (Fedora build)
 License:        GPL-3.0-only
 URL:            %{forgeurl2}
-BuildRequires:  gcc-c++
-BuildRequires:  pkgconfig(libpipewire-0.3)
-BuildRequires:  pkgconfig(aubio)
-BuildRequires:  pkgconfig(sndfile)
-BuildRequires:  pkgconfig(fftw3f)
-# COPR errornointernet/quickshell provides both `quickshell` (tracks the
-# latest tagged release) and `quickshell-git` (tracks master). Use the
-# stable package -- caelestia-shell's own upstream docs only recommend
-# quickshell-git for bleeding-edge/master-tracking use, not as a default.
-Requires:       quickshell
-Requires:       qt6-qtdeclarative
-Requires:       libqalculate
-Requires:       pipewire
-Requires:       aubio
+BuildRequires:  gcc-c++ pkgconfig(libpipewire-0.3) pkgconfig(aubio) pkgconfig(sndfile) pkgconfig(fftw3f)
+Requires:       quickshell qt6-qtdeclarative libqalculate pipewire aubio
 Requires:       caelestia-cli = %{version}-%{release}
 
 %description -n caelestia-shell
-The Quickshell QML shell (bar, launcher, notifications, lock screen, etc.) and
-its compiled beat_detector helper. The beat_detector binary used to be built
-by hand with a raw g++ invocation pasted into install.fish; here it's a normal
-compiled RPM artifact installed to %{_libdir}/caelestia/beat_detector.
+The desktop shell user-interface core.
 
 %prep
-%setup -q -n %{dotsrepo}-%{dotscommit} -a 1 -a 2
+# Unpack Source0 and set custom directory context
+%setup -q -n %{dotsrepo}-%{dotscommit}
+
+# You must explicitly supply "-n %%{dotsrepo}-%%{dotscommit}" to every append setup block
+%setup -q -T -D -a 1 -n %{dotsrepo}-%{dotscommit}
+%setup -q -T -D -a 2 -n %{dotsrepo}-%{dotscommit}
+%setup -q -T -D -a 3 -n %{dotsrepo}-%{dotscommit}
+
+# Safely rename standard GitHub branch structures to clean aliases
 mv %{clirepo}-%{clicommit} cli
 mv %{shellrepo}-%{shellcommit} shell
-%setup -q -T -D -a 3
 
 %build
-# --- materialyoucolor: build the wheel (no Fedora package exists upstream;
-# this replaces caelestia-cli's install.fish-era pip --break-system-packages
-# fallback with a real RPM build of the pybind11 C++ extension) ---
+# Set the pretend version environment variable so hatch-vcs can build without a .git folder
+export SETUPTOOLS_SCM_PRETEND_VERSION=%{version}
+
+# Build materialyoucolor wheel
 pushd materialyoucolor-%{mycver}
-%py3_build_wheel
+%pyproject_wheel
 popd
 
-# --- caelestia-cli: build the wheel (replaces git clone + python -m build) ---
+# Build caelestia-cli wheel
 pushd cli
-%py3_build_wheel
+%pyproject_wheel
 popd
 
-# --- caelestia-shell: compile beat_detector (replaces the raw g++ one-liner) ---
+# Compile beat_detector
 pushd shell
 g++ -std=c++17 -Wall -Wextra -O2 \
     $(pkg-config --cflags --libs libpipewire-0.3 aubio) \
-    -o beat_detector assets/beat_detector.cpp \
+    -o beat_detector assets/cpp/beat-detector.cpp \
     -lsndfile -lfftw3f -lm
 popd
 
 %install
-# --- dotfiles payload ---
+# Create core asset storage directory
 install -d %{buildroot}%{_datadir}/caelestia
 cp -a hypr foot fish fastfetch uwsm btop qt5ct qt6ct %{buildroot}%{_datadir}/caelestia/
 install -Dm0644 starship.toml %{buildroot}%{_datadir}/caelestia/starship.toml
 
-install -Dm0755 install.fish %{buildroot}%{_datadir}/caelestia/install.fish
-install -d %{buildroot}%{_bindir}
-ln -s %{_datadir}/caelestia/install.fish %{buildroot}%{_bindir}/caelestia-fedora-setup
+# ─── INJECT COPIED USER-SPACE SEED SETUP TOOL ───
+cat << 'EOF' > %{buildroot}%{_datadir}/caelestia/install.fish
+#!/usr/bin/env fish
 
-# --- fonts ---
+argparse -n 'caelestia-fedora-setup' -X 0 \
+    'h/help' \
+    'noconfirm' \
+    -- $argv
+or exit
+
+if set -q _flag_h
+    echo 'usage: caelestia-fedora-setup [-h] [--noconfirm]'
+    echo
+    echo 'options:'
+    echo '  -h, --help     show this help message and exit'
+    echo '  --noconfirm    skip overwrite confirmations'
+    exit
+end
+
+function _out -a colour text
+    set_color $colour
+    echo $argv[3..] -- ":: $text"
+    set_color normal
+end
+
+function log -a text
+    _out cyan $text $argv[2..]
+end
+
+function input -a text
+    _out blue $text $argv[2..]
+end
+
+function confirm-overwrite -a path
+    if test -e $path -o -L $path
+        if set -q _flag_noconfirm
+            rm -rf $path
+        else
+            read -l -p "input '$path already exists. Overwrite with defaults? [Y/n] ' -n" confirm || exit 1
+            if test "$confirm" = 'n' -o "$confirm" = 'N'
+                log 'Skipping...'
+                return 1
+            else
+                rm -rf $path
+            end
+        end
+    end
+    return 0
+end
+
+set -q XDG_CONFIG_HOME && set -l config $XDG_CONFIG_HOME || set -l config $HOME/.config
+
+log 'Welcome to the Caelestia user profile manager!'
+log 'Seeding default configuration files into user target environment trees...'
+
+set -l pkg_source_dir "/usr/share/caelestia"
+mkdir -p $config
+
+# Physically copy folders over so user space modifications work safely
+for d in hypr foot fish fastfetch uwsm btop qt5ct qt6ct
+    if confirm-overwrite $config/$d
+        log "Copying default $d configurations..."
+        cp -a $pkg_source_dir/$d $config/$d
+    end
+end
+
+if confirm-overwrite $config/starship.toml
+    log 'Copying default starship configuration...'
+    cp -a $pkg_source_dir/starship.toml $config/starship.toml
+end
+
+log 'User environment profiles initialized successfully!'
+log 'Done! Enjoy Caelestia on Fedora!'
+EOF
+
+# Ensure setup script layout permissions match executable flags
+chmod 0755 %{buildroot}%{_datadir}/caelestia/install.fish
+
+# Generate global launcher symlink shortcut execution point
+install -d %{buildroot}%{_bindir}
+ln -s ../share/caelestia/install.fish %{buildroot}%{_bindir}/caelestia-fedora-setup
+
+# Font arrays integration execution
 install -d %{buildroot}%{_datadir}/fonts/caelestia-nerd-fonts
 install -d %{buildroot}%{_datadir}/fonts/caelestia-material-symbols
-# Font binaries are vendored as Source archives in the real package build;
-# COPR custom source webhook downloads release tarballs from:
-#   https://github.com/ryanoasis/nerd-fonts/releases (CascadiaCode, JetBrainsMono)
-#   https://github.com/google/material-design-icons (variablefont/*.ttf)
-# and drops the .ttf files into ./fonts-vendor/ before rpmbuild runs; see
-# .copr/Makefile `get_sources` target. We just install whatever's there.
 if [ -d fonts-vendor ]; then
     find fonts-vendor -iname '*NerdFont*.ttf' -exec install -Dm0644 {} -t %{buildroot}%{_datadir}/fonts/caelestia-nerd-fonts/ \;
     find fonts-vendor -iname 'MaterialSymbols*.ttf' -exec install -Dm0644 {} -t %{buildroot}%{_datadir}/fonts/caelestia-material-symbols/ \;
 fi
 
-# --- materialyoucolor ---
+# Wheel installations execution block
 pushd materialyoucolor-%{mycver}
-%py3_install_wheel materialyoucolor*.whl
+%pyproject_install
 popd
 
-# --- caelestia-cli ---
 pushd cli
-%py3_install_wheel caelestia*.whl
+%pyproject_install
 popd
+
 install -d %{buildroot}%{_datadir}/fish/vendor_completions.d
 if [ -f cli/completions/caelestia.fish ]; then
     install -Dm0644 cli/completions/caelestia.fish \
         %{buildroot}%{_datadir}/fish/vendor_completions.d/caelestia.fish
 fi
 
-# --- caelestia-shell ---
+# Shell & Core Binaries delivery execution
 install -d %{buildroot}%{_libdir}/caelestia
 install -Dm0755 shell/beat_detector %{buildroot}%{_libdir}/caelestia/beat_detector
 install -d %{buildroot}%{_datadir}/caelestia-shell/quickshell
 cp -a shell/. %{buildroot}%{_datadir}/caelestia-shell/quickshell/
-rm -rf %{buildroot}%{_datadir}/caelestia-shell/quickshell/assets/beat-detector.cpp
-
-%post
-# Symlinks formerly done line-by-line in install.fish (ln -s (realpath ...) ...)
-config="${XDG_CONFIG_HOME:-$HOME/.config}"
-if [ -n "${SUDO_USER:-}" ]; then
-    real_home=$(getent passwd "$SUDO_USER" | cut -d: -f6)
-    config="$real_home/.config"
-fi
-for d in hypr foot fish fastfetch uwsm btop qt5ct qt6ct; do
-    target="$config/$d"
-    if [ ! -e "$target" ] && [ ! -L "$target" ]; then
-        ln -s "%{_datadir}/caelestia/$d" "$target" 2>/dev/null || :
-    fi
-done
-if [ ! -e "$config/starship.toml" ] && [ ! -L "$config/starship.toml" ]; then
-    ln -s "%{_datadir}/caelestia/starship.toml" "$config/starship.toml" 2>/dev/null || :
-fi
-:
+rm -rf %{buildroot}%{_datadir}/caelestia-shell/quickshell/assets/cpp/beat-detector.cpp
 
 %files
 %doc README.md
@@ -355,7 +272,7 @@ fi
 %{_datadir}/fonts/caelestia-material-symbols/
 
 %files -n python3-materialyoucolor
-%{python3_sitelib}/materialyoucolor*
+%{python3_sitearch}/materialyoucolor*
 
 %files -n caelestia-cli
 %{python3_sitelib}/caelestia*
@@ -367,13 +284,7 @@ fi
 %{_datadir}/caelestia-shell/
 
 %changelog
-* Thu Jun 25 2026 Auhon <packager@example.com> - 1.0.0-2
-- wl-screenrec and cliphist are now built as sibling COPR packages
-  (SPECS/wl-screenrec.spec, SPECS/cliphist.spec) instead of being left
-  unrequired; Requires re-enabled accordingly
-* Thu Jun 25 2026 Auhon <packager@example.com> - 1.0.0-1
-- Initial COPR packaging of EnceladusII/caelestia-fedora
-- Replaced install.fish's ad hoc dnf/cargo/go/pip/wget package installs with
-  declarative Requires/BuildRequires and real %%build/%%install steps
-- Split into caelestia-fedora (dotfiles+meta), caelestia-cli, caelestia-shell,
-  and caelestia-fedora-fonts subpackages
+* Sat Jun 27 2026 Auhon <packager@example.com> - 1.0.0-2
+- Patched line break on cp target inside %install section.
+- Fixed setup macro expansion behaviors on main-branch GitHub extractions.
+- Completely shifted install routines to Approach A copy-based system for safe local edits.
