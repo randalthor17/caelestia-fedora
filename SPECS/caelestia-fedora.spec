@@ -28,7 +28,7 @@ Requires:       caelestia-cli = %{version}-%{release}
 Requires:       caelestia-shell = %{version}-%{release}
 
 # Core runtime deps
-Requires:       hyprland
+Requires:       (hyprland or hyprland-git)
 Requires:       xdg-desktop-portal-hyprland
 Requires:       xdg-desktop-portal-gtk
 Requires:       wl-clipboard
